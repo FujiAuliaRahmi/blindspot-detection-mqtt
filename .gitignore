@@ -1,0 +1,22 @@
+# Folder dependensi Node.js
+# Ukurannya sangat besar dan bisa diinstal ulang oleh siapa saja dengan 'npm install'
+/node_modules
+
+# File-file log dan environment
+.env
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Folder konfigurasi editor
+.vscode/
+.idea/
+
+# File database lokal Anda
+# Sebaiknya data tidak di-commit ke repositori publik
+blindpot.db
+
+# File sistem operasi
+.DS_Store
+Thumbs.db
