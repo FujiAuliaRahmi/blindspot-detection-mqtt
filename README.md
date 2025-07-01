@@ -19,10 +19,10 @@ Proyek Tugas Akhir ini adalah sebuah sistem prototipe untuk mendeteksi objek di 
 
 ## Fitur Utama
 
--   **Deteksi Jarak:** Menggunakan sensor ultrasonik (HC-SR04) untuk mengukur jarak objek di belakang kendaraan.
--   **Peringatan Visual:** Memberikan status peringatan (Aman, Waspada, Bahaya) pada antarmuka web berdasarkan jarak.
+-   **Deteksi Jarak:** Menggunakan sensor ultrasonik (JSN-SR04T) untuk mengukur jarak objek di belakang kendaraan.
+-   **Peringatan Visual:** Memberikan status jenis objek (mobil, pejalan kaki, dan pengendara motor) pada antarmuka web berdasarkan jarak.
 -   **Real-time Dashboard:** Menampilkan data jarak dan status LED secara langsung melalui koneksi MQTT (WebSocket).
--   **(Opsional) Deteksi Objek:** Menggunakan TensorFlow.js dengan model yang sudah dilatih (`best_web_model`) untuk mendeteksi objek via kamera.
+-   **Deteksi Objek:** Menggunakan TensorFlow.js dengan model yang sudah dilatih (`best_web_model`) untuk mendeteksi objek via kamera.
 
 ## Arsitektur Sistem
 
