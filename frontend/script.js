@@ -4,7 +4,7 @@
 const ESP32_CAM_IP = "http://192.168.239.99"; // GANTI JIKA IP ESP32-CAM ANDA BERBEDA
 
 // --- Konfigurasi MQTT ---
-const MQTT_BROKER_HOST = "test.mosquitto.org"; // Hostname broker publik (bisa test.mqtt.org atau test.mosquitto.org)
+const MQTT_BROKER_HOST = " 10.234.148.164"; // Hostname broker publik (bisa test.mqtt.org atau test.mosquitto.org)
 const MQTT_BROKER_PORT = 8080; // Port WebSocket untuk broker publik (untuk browser)
 const MQTT_CLIENT_ID = "web_client_" + parseInt(Math.random() * 10000); // ID klien unik
 
