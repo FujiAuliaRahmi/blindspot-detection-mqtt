@@ -1,37 +1,29 @@
 // server.js
 const express = require('express');
+const path = require('path');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
-const path = require('path'); // <-- [1] TAMBAHAN PENTING
 
 const app = express();
-// [4] Port disesuaikan untuk Vercel, dengan fallback ke 5000 untuk lokal
-const port = process.env.PORT || 5000;
+// Sajikan file statis dari folder 'frontend'
+app.use(express.static(path.join(__dirname, 'frontend')));
+const port = 3000; // Port untuk API Anda
 
 // --- Middleware ---
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-// --- [2] TAMBAHAN PENTING UNTUK MENYAJIKAN WEBSITE ---
-// Memberitahu Express untuk menyajikan file statis (seperti script.js, style.css)
-// dari dalam folder 'frontend'.
-app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(cors()); // Aktifkan CORS untuk semua origin (untuk pengembangan)
+app.use(bodyParser.json()); // Untuk mem-parsing JSON body dari request
+app.use(bodyParser.urlencoded({ extended: true })); // Untuk mem-parsing URL-encoded body
 
 // --- Inisialisasi Database SQLite ---
-// [5] Perbaikan path database untuk Vercel.
-// Vercel hanya memperbolehkan penulisan di direktori /tmp
-const dbPath = process.env.VERCEL ? '/tmp/blindspot.db' : './blindspot.db';
-let db = new sqlite3.Database(dbPath, (err) => {
+let db = new sqlite3.Database('./blindspot.db', (err) => {
     if (err) {
         console.error(err.message);
     }
-    console.log(`Terhubung ke database SQLite di: ${dbPath}`);
+    console.log('Terhubung ke database SQLite.');
 });
 
-
-// Buat tabel jika belum ada (tidak ada perubahan di sini)
+// Buat tabel jika belum ada
 db.serialize(() => {
     // Tabel untuk deteksi objek
     db.run(`CREATE TABLE IF NOT EXISTS object_detection (
@@ -45,10 +37,10 @@ db.serialize(() => {
         distance_cm REAL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    // Tabel untuk status LED
+    // Tabel untuk status LED (kita simpan status terakhir di sini)
     db.run(`CREATE TABLE IF NOT EXISTS led_status (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        status TEXT,
+        status TEXT, -- 'ON' atau 'OFF'
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
@@ -72,92 +64,141 @@ db.serialize(() => {
     console.log('Tabel database dicek/dibuat.');
 });
 
-// --- Endpoint API (TIDAK ADA PERUBAHAN SAMA SEKALI) ---
+// --- Endpoint API ---
 
-// 1. Menerima data deteksi objek
+// 1. Menerima data deteksi objek dari ESP32-CAM (HTTP POST)
 app.post('/detection_upload', (req, res) => {
-    const { object_name } = req.body;
+    const { object_name } = req.body; // Asumsi ESP32 mengirim JSON: { "object_name": "Kendaraan" }
     if (!object_name) {
         return res.status(400).json({ error: 'object_name is required' });
     }
+
     db.run(`INSERT INTO object_detection (object_name) VALUES (?)`, [object_name], function(err) {
-        if (err) { return res.status(500).json({ error: err.message }); }
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
         res.status(201).json({ message: 'Detection data received', id: this.lastID });
     });
 });
 
-// 2. Menerima data jarak ultrasonik
+// 2. Menerima data jarak ultrasonik dari NodeMCU ESP8266 (HTTP POST)
 app.post('/distance_upload', (req, res) => {
-    const { distance_cm } = req.body;
+    const { distance_cm } = req.body; // Asumsi NodeMCU mengirim JSON: { "distance_cm": 123.45 }
     if (typeof distance_cm === 'undefined') {
         return res.status(400).json({ error: 'distance_cm is required' });
     }
+
     db.run(`INSERT INTO ultrasonic_distance (distance_cm) VALUES (?)`, [distance_cm], function(err) {
-        if (err) { return res.status(500).json({ error: err.message }); }
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
         res.status(201).json({ message: 'Distance data received', id: this.lastID });
     });
 });
 
-// 3. Menyediakan data deteksi objek
+// 3. Menyediakan data deteksi objek terbaru untuk Website (HTTP GET)
 app.get('/detection', (req, res) => {
     db.get(`SELECT object_name, timestamp FROM object_detection ORDER BY timestamp DESC LIMIT 1`, (err, row) => {
-        if (err) { return res.status(500).json({ error: err.message }); }
-        res.json(row || { object: "Tidak Ada Data", timestamp: null });
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (row) {
+            res.json({ object: row.object_name, timestamp: row.timestamp });
+        } else {
+            res.json({ object: "Tidak Ada Data", timestamp: null });
+        }
     });
 });
 
-// 4. Menyediakan data jarak
+// 4. Menyediakan data jarak ultrasonik terbaru untuk Website (HTTP GET)
 app.get('/distance', (req, res) => {
     db.get(`SELECT distance_cm, timestamp FROM ultrasonic_distance ORDER BY timestamp DESC LIMIT 1`, (err, row) => {
-        if (err) { return res.status(500).json({ error: err.message }); }
-        res.json(row || { distance_cm: "--", timestamp: null });
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (row) {
+            res.json({ distance_cm: row.distance_cm, timestamp: row.timestamp });
+        } else {
+            res.json({ distance_cm: "--", timestamp: null });
+        }
     });
 });
 
-// 5. Menyediakan status LED
+// 5. Menyediakan status LED terbaru untuk Website (HTTP GET)
 app.get('/led/status', (req, res) => {
     db.get(`SELECT status, timestamp FROM led_status ORDER BY timestamp DESC LIMIT 1`, (err, row) => {
-        if (err) { return res.status(500).json({ error: err.message }); }
-        res.json(row || { status: "OFF", timestamp: null });
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (row) {
+            res.json({ status: row.status, timestamp: row.timestamp });
+        } else {
+            res.json({ status: "OFF", timestamp: null }); // Default OFF
+        }
     });
 });
 
-// 6. Menyediakan perintah LED
+// 6. Endpoint untuk NodeMCU mengambil perintah LED (HTTP GET)
+// NodeMCU akan GET endpoint ini dan mengupdate status LED-nya.
 app.get('/led/command', (req, res) => {
     db.get(`SELECT status FROM led_status ORDER BY timestamp DESC LIMIT 1`, (err, row) => {
-        if (err) { return res.status(500).json({ error: err.message }); }
-        res.json(row || { command: "OFF" });
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        if (row) {
+            res.json({ command: row.status }); // Kirim perintah 'ON' atau 'OFF'
+        } else {
+            res.json({ command: "OFF" }); // Default command OFF
+        }
     });
 });
 
-// 7. Mengupdate status LED
+// 7. Endpoint untuk mengupdate status LED dari API (misal dari logika backend, atau admin web)
+// Contoh: Anda bisa membuat endpoint `/led/toggle` di website admin yang memanggil API ini.
+// Untuk skripsi Anda, mungkin ini akan otomatis berdasarkan data jarak/deteksi.
 app.post('/led/update', (req, res) => {
-    const { status } = req.body;
+    const { status } = req.body; // Asumsi JSON: { "status": "ON" } atau { "status": "OFF" }
     if (!status || (status.toUpperCase() !== 'ON' && status.toUpperCase() !== 'OFF')) {
         return res.status(400).json({ error: 'Status must be ON or OFF' });
     }
+
     db.run(`INSERT INTO led_status (status) VALUES (?)`, [status.toUpperCase()], function(err) {
-        if (err) { return res.status(500).json({ error: err.message }); }
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: err.message });
+        }
         res.status(201).json({ message: `LED status set to ${status.toUpperCase()}`, id: this.lastID });
     });
 });
 
-
-// --- [3] TAMBAHAN PENTING UNTUK MENYAJIKAN HALAMAN UTAMA ---
-// Rute ini harus berada di bawah semua rute API
-// Ini akan mengirimkan file index.html sebagai "fallback" untuk semua permintaan GET
-// yang tidak cocok dengan rute API di atas. Inilah yang memperbaiki "Cannot GET /"
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+// Rute untuk menyajikan halaman index.html saat mengunjungi halaman utama
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
-
 
 // --- Mulai Server ---
 app.listen(port, () => {
     console.log(`API Blind Spot berjalan di http://localhost:${port}`);
+    console.log(`IP lokal Anda (jika terhubung ke jaringan): ${getIpAddress()}:${port}`);
 });
 
-// [6] Menambahkan ini untuk kompatibilitas Vercel
+// Fungsi bantu untuk mendapatkan IP lokal (untuk memudahkan koneksi dari ESP)
+function getIpAddress() {
+    const interfaces = require('os').networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if ('IPv4' === iface.family && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return '127.0.0.1';
+// Export app untuk Vercel
 module.exports = app;
-
-// Fungsi bantu getIpAddress tidak diperlukan di Vercel, jadi bisa diabaikan atau dihapus.
+}
