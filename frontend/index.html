@@ -15,7 +15,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Boxicons (untuk ikon) -->
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
-  
+    
+    <!-- Tailwind CSS CDN - Ini adalah cara utama styling kita -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <!-- Custom CSS Anda -->
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -81,20 +84,20 @@
         </div>
       </section>
 
-    
+      <!-- Real-time Data Section (Timestamp removed if not sent by ESP via MQTT payload) -->
       <section class="p-6 bg-gray-800 rounded-xl shadow-xl">
         <h2 class="text-3xl font-semibold text-center mb-6 text-blue-300">Data Real-time Sensor</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="bg-gray-700 p-5 rounded-lg shadow-md border border-gray-600 text-center">
             <h3 class="text-xl font-semibold text-gray-300 mb-2">Deteksi Objek Terakhir</h3>
             <p id="latestObjectData" class="text-4xl font-bold text-orange-400 mb-2">Tidak ada data</p>
-
+            <!-- Timestamp dikomentari karena biasanya tidak dikirim via MQTT payload secara default -->
             <!-- <p id="latestObjectTimestamp" class="text-xs text-gray-400"></p> -->
           </div>
           <div class="bg-gray-700 p-5 rounded-lg shadow-md border border-gray-600 text-center">
             <h3 class="text-xl font-semibold text-gray-300 mb-2">Jarak Ultrasonik Terakhir</h3>
             <p id="latestDistanceData" class="text-4xl font-bold text-orange-400 mb-2">-- cm</p>
-
+            <!-- Timestamp dikomentari karena biasanya tidak dikirim via MQTT payload secara default -->
             <!-- <p id="latestDistanceTimestamp" class="text-xs text-gray-400"></p> -->
           </div>
         </div>
